@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-5">
+    <h2>Trending Movies</h2>
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for movie in trending_movies %}
+        <div class="col">
+            <div class="card h-100 movie-card">
+                {% if movie.posters.first %}
+                <img src="{{ movie.posters.first.image.url }}" class="card-img-top" alt="{{ movie.title }}" style="height: 400px; object-fit: cover;">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title"><a href="{% url 'movie_detail' movie.pk %}" class="text-decoration-none text-dark">{{ movie.title }}</a></h5>
+                    <p class="card-text text-muted">⭐ {{ movie.average_rating }} / 5.0 | {{ movie.age_certification }}</p>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p>No trending movies available.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="row mb-5">
+    <h2>Recently Released</h2>
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for movie in recent_movies %}
+        <div class="col">
+            <div class="card h-100 movie-card">
+                {% if movie.posters.first %}
+                <img src="{{ movie.posters.first.image.url }}" class="card-img-top" alt="{{ movie.title }}" style="height: 400px; object-fit: cover;">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title"><a href="{% url 'movie_detail' movie.pk %}" class="text-decoration-none text-dark">{{ movie.title }}</a></h5>
+                    <p class="card-text text-muted">Released: {{ movie.release_date|date:"M d, Y" }}</p>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p>No recent movies available.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

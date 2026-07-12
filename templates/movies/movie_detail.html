@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ movie.title }} - MovieApp{% endblock %}
+
+{% block content %}
+<div class="row mb-5">
+    <div class="col-md-4">
+        {% if movie.posters.all %}
+        <div id="posterCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner shadow-sm rounded">
+                {% for poster in movie.posters.all %}
+                <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                    <img src="{{ poster.image.url }}" class="d-block w-100 rounded" alt="Poster for {{ movie.title }}">
+                </div>
+                {% endfor %}
+            </div>
+            {% if movie.posters.count > 1 %}
+            <button class="carousel-control-prev" type="button" data-bs-target="#posterCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#posterCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="bg-secondary text-white d-flex align-items-center justify-content-center rounded shadow-sm" style="height: 500px;">
+            <span>No Posters Available</span>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-8">
+        <h1 class="display-5 fw-bold">{{ movie.title }}</h1>
+        <p class="text-muted fs-5">
+            ⭐ <strong>{{ movie.average_rating }}</strong> / 5.0 | 
+            🕒 {{ movie.duration_minutes }} min | 
+            ⛔ {{ movie.age_certification }} | 
+            📅 {{ movie.release_date|date:"Y" }}
+        </p>
+        
+        <div class="mb-4">
+            <div class="mb-2">
+                <strong>Genres:</strong> 
+                {% for genre in movie.genres.all %}
+                <span class="badge bg-secondary">{{ genre.name }}</span> 
+                {% empty %}
+                <span class="text-muted">N/A</span>
+                {% endfor %}
+            </div>
+            <div>
+                <strong>Language(s):</strong> 
+                {% for lang in movie.languages.all %}
+                <span class="badge bg-info text-dark">{{ lang.name }}</span> 
+                {% empty %}
+                <span class="text-muted">N/A</span>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <p class="lead">{{ movie.description }}</p>
+        
+        <div class="mt-4">
+            <h4>Cast</h4>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                {% for member in movie.cast.all %}
+                <div class="card p-2 text-center shadow-sm" style="width: 120px; border: none; background-color: #fff;">
+                    {% if member.profile_image %}
+                    <img src="{{ member.profile_image.url }}" class="card-img-top rounded-circle mx-auto mt-2" style="width: 70px; height: 70px; object-fit: cover; border: 2px solid #ddd;">
+                    {% else %}
+                    <div class="rounded-circle mx-auto mt-2 bg-light d-flex align-items-center justify-content-center" style="width: 70px; height: 70px; border: 2px solid #ddd;">
+                        <span class="text-muted small">No Img</span>
+                    </div>
+                    {% endif %}
+                    <small class="mt-2 fw-bold text-truncate" title="{{ member.name }}">{{ member.name }}</small>
+                    <small class="text-muted" style="font-size: 0.75rem;">{{ member.role }}</small>
+                </div>
+                {% empty %}
+                <p class="text-muted">No cast members documented.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if movie.trailer_url %}
+<div class="row mb-5">
+    <div class="col-12">
+        <h4>Trailer</h4>
+        <div class="ratio ratio-16x9 shadow-sm rounded overflow-hidden">
+            <iframe src="{{ movie.trailer_url }}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row mb-5">
+    <div class="col-md-8">
+        <h4>User Reviews ({{ reviews.count }})</h4>
+        
+        {% if user.is_authenticated %}
+            {% if has_watched %}
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-body">
+                        <h5>{% if user_review %}Edit your review{% else %}Leave a Review{% endif %}</h5>
+                        <form method="post">
+                            {% csrf_token %}
+                            {{ review_form|crispy }}
+                            <button type="submit" class="btn btn-primary mt-3">{% if user_review %}Update Review{% else %}Submit Review{% endif %}</button>
+                        </form>
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-warning shadow-sm">
+                    <strong>Note:</strong> You can only submit a review after booking and watching this movie.
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info shadow-sm">
+                Please <a href="{% url 'admin:login' %}?next={{ request.path }}">login</a> to leave a review.
+            </div>
+        {% endif %}
+        
+        <ul class="list-group shadow-sm">
+            {% for review in reviews %}
+            <li class="list-group-item p-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong>{{ review.user.username }}</strong>
+                        {% if review.verified_viewer %}
+                            <span class="verified-badge ms-2">✔ Verified Viewer</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-warning">
+                        {% for i in "12345"|make_list %}
+                            {% if forloop.counter <= review.rating %}⭐{% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <p class="mt-2 mb-2">{{ review.text }}</p>
+                <small class="text-muted">
+                    {{ review.created_at|date:"M d, Y" }} 
+                    {% if review.is_edited %}(Edited){% endif %}
+                </small>
+            </li>
+            {% empty %}
+            <li class="list-group-item text-muted text-center py-4">No reviews yet. Be the first to review!</li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <div class="col-md-4">
+        <h4>Similar Movies</h4>
+        <div class="d-flex flex-column gap-3 mt-3">
+            {% for similar in similar_movies %}
+            <div class="card shadow-sm">
+                <div class="row g-0">
+                    <div class="col-4">
+                        {% if similar.posters.first %}
+                        <img src="{{ similar.posters.first.image.url }}" class="img-fluid rounded-start h-100" style="object-fit: cover;" alt="...">
+                        {% else %}
+                        <div class="bg-secondary h-100 w-100 rounded-start"></div>
+                        {% endif %}
+                    </div>
+                    <div class="col-8">
+                        <div class="card-body py-2 px-3">
+                            <h6 class="card-title mb-1"><a href="{% url 'movie_detail' similar.pk %}" class="text-decoration-none text-dark">{{ similar.title }}</a></h6>
+                            <p class="card-text mb-0"><small class="text-muted">⭐ {{ similar.average_rating }}</small></p>
+                            <p class="card-text"><small class="text-muted">{{ similar.release_date|date:"Y" }}</small></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="alert alert-light border">No similar movies found.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
