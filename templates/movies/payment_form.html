@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment - {{ booking.schedule.movie.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .card-input { letter-spacing: 2px; font-size: 1.1rem; }
+  .payment-icon { font-size: 2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+    <div class="row g-4">
+      <!-- Payment Form -->
+      <div class="col-md-7">
+        <div class="glass-card p-4 p-md-5 border-0 shadow">
+          <h2 class="text-white fw-bold mb-2"><i class="fas fa-lock me-2 text-success"></i>Secure Payment</h2>
+          <p class="text-muted mb-4">Your payment is encrypted and secure.</p>
+
+          <!-- Payment Methods -->
+          <div class="d-flex gap-3 mb-4">
+            <div class="p-3 rounded text-center" style="background:rgba(255,255,255,0.05);border:2px solid #3b82f6;flex:1;cursor:pointer;">
+              <i class="fas fa-credit-card text-primary fa-2x mb-1"></i>
+              <div class="text-white small fw-bold">Credit/Debit Card</div>
+            </div>
+            <div class="p-3 rounded text-center" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);flex:1;cursor:pointer;opacity:0.5;" title="Coming soon">
+              <i class="fas fa-mobile-alt text-muted fa-2x mb-1"></i>
+              <div class="text-muted small">UPI / NetBanking</div>
+            </div>
+          </div>
+
+          <form method="post" id="paymentForm">
+            {% csrf_token %}
+            <div class="mb-4">
+              <label class="text-muted small fw-bold mb-2 d-block">CARD NUMBER</label>
+              <input type="text" name="card_number" class="form-control form-control-lg card-input"
+                placeholder="1234 5678 9012 3456" maxlength="19" required
+                oninput="this.value=this.value.replace(/\D/g,'').replace(/(.{4})/g,'$1 ').trim().substring(0,19)">
+              <div class="d-flex gap-2 mt-2">
+                <img src="https://img.icons8.com/color/48/visa.png" height="24" alt="Visa">
+                <img src="https://img.icons8.com/color/48/mastercard.png" height="24" alt="Mastercard">
+                <img src="https://img.icons8.com/color/48/rupay.png" height="24" alt="RuPay">
+              </div>
+            </div>
+            <div class="mb-4">
+              <label class="text-muted small fw-bold mb-2 d-block">CARDHOLDER NAME</label>
+              <input type="text" name="card_name" class="form-control form-control-lg" placeholder="Lakshya Khawade" required>
+            </div>
+            <div class="row g-3 mb-4">
+              <div class="col-6">
+                <label class="text-muted small fw-bold mb-2 d-block">EXPIRY DATE</label>
+                <input type="text" name="expiry" class="form-control form-control-lg card-input"
+                  placeholder="MM/YY" maxlength="5" required
+                  oninput="this.value=this.value.replace(/\D/g,'').replace(/^(\d{2})(\d)/, '$1/$2').substring(0,5)">
+              </div>
+              <div class="col-6">
+                <label class="text-muted small fw-bold mb-2 d-block">CVV</label>
+                <input type="password" name="cvv" class="form-control form-control-lg card-input"
+                  placeholder="•••" maxlength="4" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fs-5 shadow fw-bold" id="payBtn">
+              <i class="fas fa-lock me-2"></i>Pay ₹{{ booking.total_price }}
+            </button>
+            <p class="text-center text-muted small mt-3"><i class="fas fa-info-circle me-1"></i>Tip: Use any card ending in <code class="text-danger">0000</code> to simulate a failed payment.</p>
+          </form>
+        </div>
+      </div>
+
+      <!-- Order Summary -->
+      <div class="col-md-5">
+        <div class="glass-card p-4 border-0 shadow sticky-top" style="top:80px;">
+          <h4 class="text-white fw-bold mb-4">Order Summary</h4>
+          <div class="mb-3">
+            <div class="text-muted small mb-1">Movie</div>
+            <div class="text-white fw-bold fs-5">{{ booking.schedule.movie.title }}</div>
+          </div>
+          <div class="mb-3">
+            <div class="text-muted small mb-1">Theater</div>
+            <div class="text-white">{{ booking.schedule.theater.name }}</div>
+          </div>
+          <div class="mb-3">
+            <div class="text-muted small mb-1">Date & Time</div>
+            <div class="text-white">{{ booking.schedule.start_time|date:"D, d M Y, g:i A" }}</div>
+          </div>
+          <div class="mb-3">
+            <div class="text-muted small mb-1">Seats</div>
+            <div class="text-primary fw-bold">{{ booking.seat_numbers }}</div>
+          </div>
+          <hr style="border-color:rgba(255,255,255,0.1);">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">{{ booking.seats_booked }} × ₹{{ booking.schedule.movie.ticket_price }}</span>
+            <span class="text-white">₹{{ booking.total_price }}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Convenience Fee</span>
+            <span class="text-success">FREE</span>
+          </div>
+          <hr style="border-color:rgba(255,255,255,0.1);">
+          <div class="d-flex justify-content-between">
+            <span class="text-white fw-bold fs-5">Total</span>
+            <span class="text-warning fw-bold fs-4">₹{{ booking.total_price }}</span>
+          </div>
+          <div class="mt-4 p-3 rounded" style="background:rgba(52, 211, 153, 0.05); border:1px solid rgba(52, 211, 153, 0.2);">
+            <div class="d-flex align-items-center gap-2 text-success small fw-bold">
+              <i class="fas fa-shield-alt"></i> 100% Secure Payment
+            </div>
+            <div class="text-muted small mt-1">Protected by 256-bit SSL encryption</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.getElementById('paymentForm').onsubmit = function() {
+    const btn = document.getElementById('payBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+  };
+</script>
+{% endblock %}

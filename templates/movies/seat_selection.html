@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block title %}Select Seats - {{ schedule.movie.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .seat { width: 40px; height: 40px; border-radius: 8px 8px 0 0; cursor: pointer; border: 2px solid transparent; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; transition: all 0.2s; font-weight: 600; }
+  .seat.available { background: rgba(52, 211, 153, 0.15); border-color: #34d399; color: #34d399; }
+  .seat.available:hover { background: #34d399; color: #0f172a; transform: scale(1.1); }
+  .seat.booked { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #ef4444; cursor: not-allowed; }
+  .seat.reserved { background: rgba(251, 191, 36, 0.2); border-color: #fbbf24; color: #fbbf24; cursor: not-allowed; }
+  .seat.selected { background: #3b82f6; border-color: #60a5fa; color: white; transform: scale(1.1); box-shadow: 0 0 12px rgba(59,130,246,0.5); }
+  .seat.mine { background: rgba(139, 92, 246, 0.2); border-color: #8b5cf6; color: #8b5cf6; }
+  #timer { font-size: 1.5rem; font-weight: 700; color: #fbbf24; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8 pe-lg-4">
+    <div class="glass-card p-4 mb-4 border-0 shadow">
+      <h2 class="text-white fw-bold mb-1">{{ schedule.movie.title }}</h2>
+      <p class="text-muted mb-4">
+        <i class="fas fa-map-marker-alt me-2 text-primary"></i>{{ schedule.theater.name }} &bull;
+        <i class="far fa-clock me-2 ms-2 text-primary"></i>{{ schedule.start_time|date:"D, d M Y, g:i A" }}
+      </p>
+
+      <!-- Screen -->
+      <div class="text-center mb-4">
+        <div class="mx-auto rounded-pill py-2 text-muted small fw-bold" style="background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); width: 80%; letter-spacing: 4px;">SCREEN</div>
+      </div>
+
+      <!-- Seat Map -->
+      <form method="post" id="seatForm">
+        {% csrf_token %}
+        {% for row in seat_map %}
+        <div class="d-flex align-items-center gap-2 mb-2 justify-content-center">
+          <span class="text-muted fw-bold" style="width:20px;text-align:right;">{{ row.label }}</span>
+          <div class="d-flex gap-1">
+            {% for seat in row.seats %}
+            <div class="seat {{ seat.status }}" id="seat-{{ seat.id }}" data-seat="{{ seat.id }}"
+               onclick="toggleSeat(this, '{{ seat.status }}')" title="{{ seat.id }}">
+              {{ seat.id }}
+            </div>
+            <input type="checkbox" name="seats" value="{{ seat.id }}" id="chk-{{ seat.id }}" class="d-none">
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+
+        <!-- Legend -->
+        <div class="d-flex gap-4 justify-content-center mt-4 flex-wrap">
+          <span class="d-flex align-items-center gap-2"><span class="seat available" style="width:24px;height:24px;cursor:default;"></span><span class="text-muted small">Available</span></span>
+          <span class="d-flex align-items-center gap-2"><span class="seat selected" style="width:24px;height:24px;cursor:default;"></span><span class="text-muted small">Selected</span></span>
+          <span class="d-flex align-items-center gap-2"><span class="seat reserved" style="width:24px;height:24px;cursor:default;"></span><span class="text-muted small">Reserved (hold)</span></span>
+          <span class="d-flex align-items-center gap-2"><span class="seat booked" style="width:24px;height:24px;cursor:default;"></span><span class="text-muted small">Booked</span></span>
+        </div>
+
+        <div class="text-center mt-5">
+          <button type="submit" id="proceedBtn" class="btn btn-primary btn-lg rounded-pill px-5 shadow disabled" disabled>
+            <i class="fas fa-couch me-2"></i>Proceed to Payment (<span id="seatCount">0</span> seats)
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="glass-card p-4 border-0 shadow mb-4 sticky-top" style="top: 80px;">
+      <h4 class="text-white fw-bold mb-4">Booking Summary</h4>
+      <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);">
+        <div class="text-muted small mb-1">Movie</div>
+        <div class="text-white fw-bold">{{ schedule.movie.title }}</div>
+      </div>
+      <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);">
+        <div class="text-muted small mb-1">Theater</div>
+        <div class="text-white">{{ schedule.theater.name }}</div>
+        <div class="text-muted small">{{ schedule.theater.location }}</div>
+      </div>
+      <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);">
+        <div class="text-muted small mb-1">Showtime</div>
+        <div class="text-white">{{ schedule.start_time|date:"D, d M Y" }}</div>
+        <div class="text-primary fw-bold">{{ schedule.start_time|date:"g:i A" }}</div>
+      </div>
+      <div class="mb-3 p-3 rounded" style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);">
+        <div class="text-muted small mb-1">Price per ticket</div>
+        <div class="text-warning fw-bold fs-5">₹{{ ticket_price }}</div>
+      </div>
+      <hr style="border-color:rgba(255,255,255,0.1);">
+      <div class="d-flex justify-content-between align-items-center">
+        <span class="text-muted">Selected Seats:</span>
+        <span class="text-white fw-bold" id="selectedList">None</span>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mt-2">
+        <span class="text-muted">Total Amount:</span>
+        <span class="text-success fw-bold fs-4" id="totalAmount">₹0</span>
+      </div>
+      <div class="mt-3 text-center">
+        <span class="text-muted small"><i class="fas fa-clock me-1 text-warning"></i>Seats held for 2 minutes after reserving</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const TICKET_PRICE = {{ ticket_price }};
+  let selectedSeats = new Set();
+
+  function toggleSeat(el, status) {
+    if (status === 'booked' || status === 'reserved') return;
+    const seatId = el.dataset.seat;
+    const chk = document.getElementById('chk-' + seatId);
+    if (selectedSeats.has(seatId)) {
+      selectedSeats.delete(seatId);
+      el.classList.remove('selected');
+      el.classList.add('available');
+      chk.checked = false;
+    } else {
+      selectedSeats.add(seatId);
+      el.classList.remove('available');
+      el.classList.add('selected');
+      chk.checked = true;
+    }
+    updateSummary();
+  }
+
+  function updateSummary() {
+    const count = selectedSeats.size;
+    document.getElementById('seatCount').textContent = count;
+    document.getElementById('selectedList').textContent = count > 0 ? Array.from(selectedSeats).join(', ') : 'None';
+    document.getElementById('totalAmount').textContent = '₹' + (count * TICKET_PRICE).toFixed(2);
+    const btn = document.getElementById('proceedBtn');
+    if (count > 0) { btn.classList.remove('disabled'); btn.disabled = false; }
+    else { btn.classList.add('disabled'); btn.disabled = true; }
+  }
+
+  // Refresh seat availability every 30 seconds
+  setInterval(() => {
+    fetch("{% url 'check_seat_status' %}", {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'schedule_id={{ schedule.id }}'
+    }).then(r => r.json()).then(data => {
+      data.booked.forEach(sid => {
+        const el = document.getElementById('seat-' + sid);
+        if (el && !el.classList.contains('booked')) {
+          el.className = 'seat booked';
+          selectedSeats.delete(sid);
+          document.getElementById('chk-' + sid).checked = false;
+          updateSummary();
+        }
+      });
+      data.reserved.forEach(sid => {
+        const el = document.getElementById('seat-' + sid);
+        if (el && !el.classList.contains('booked') && !el.classList.contains('selected')) {
+          el.className = 'seat reserved';
+          selectedSeats.delete(sid);
+          document.getElementById('chk-' + sid).checked = false;
+          updateSummary();
+        }
+      });
+    });
+  }, 30000);
+</script>
+{% endblock %}

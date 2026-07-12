@@ -100,8 +100,13 @@
         <div class="container">
             <a class="navbar-brand fs-3" href="{% url 'home' %}"><i class="fas fa-video me-2" style="color: #60a5fa;"></i>MovieApp</a>
             <div class="ms-auto text-light d-flex align-items-center gap-3">
+                <a href="{% url 'search_movies' %}" class="text-muted text-decoration-none me-2"><i class="fas fa-search me-1"></i>Search</a>
                 {% if user.is_authenticated %}
-                    <span class="text-muted small d-none d-md-block">Welcome, <span class="text-white fw-bold">{{ user.username }}</span></span>
+                    <a href="{% url 'my_bookings' %}" class="text-muted text-decoration-none me-2"><i class="fas fa-ticket-alt me-1"></i>My Bookings</a>
+                    {% if user.is_staff %}
+                    <a href="{% url 'admin_dashboard' %}" class="text-muted text-decoration-none me-2"><i class="fas fa-chart-line me-1"></i>Dashboard</a>
+                    {% endif %}
+                    <span class="text-muted small d-none d-md-block">Hi, <span class="text-white fw-bold">{{ user.username }}</span></span>
                     <a href="{% url 'admin:logout' %}?next=/" class="btn btn-outline-light btn-sm rounded-pill px-4">Logout</a>
                 {% else %}
                     <a href="{% url 'admin:login' %}?next=/" class="btn btn-primary rounded-pill px-4">Login</a>

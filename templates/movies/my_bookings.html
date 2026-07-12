@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}My Bookings{% endblock %}
+
+{% block content %}
+<h2 class="text-white fw-bold mb-5"><i class="fas fa-ticket-alt me-2 text-primary"></i>My Bookings</h2>
+<div class="d-flex flex-column gap-4">
+  {% for booking in bookings %}
+  <div class="glass-card p-4 border-0 shadow d-flex flex-wrap gap-4 align-items-center">
+    {% if booking.schedule.movie.posters.first %}
+    <img src="{{ booking.schedule.movie.posters.first.image.url }}" class="rounded-3 shadow" style="width:80px;height:110px;object-fit:cover;">
+    {% else %}
+    <div class="rounded-3 d-flex align-items-center justify-content-center bg-dark shadow" style="width:80px;height:110px;">
+      <i class="fas fa-film text-muted fa-2x"></i>
+    </div>
+    {% endif %}
+    <div class="flex-grow-1">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <h4 class="text-white fw-bold mb-1">{{ booking.schedule.movie.title }}</h4>
+        <span class="badge rounded-pill fs-6 px-3 py-2
+          {% if booking.payment_status == 'success' %}bg-success{% elif booking.payment_status == 'failed' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+          {{ booking.get_payment_status_display }}
+        </span>
+      </div>
+      <div class="row g-2 mt-2 text-muted small">
+        <div class="col-6 col-md-3"><i class="fas fa-map-marker-alt me-1 text-primary"></i>{{ booking.schedule.theater.name }}</div>
+        <div class="col-6 col-md-3"><i class="far fa-calendar me-1 text-primary"></i>{{ booking.schedule.start_time|date:"d M Y" }}</div>
+        <div class="col-6 col-md-3"><i class="far fa-clock me-1 text-primary"></i>{{ booking.schedule.start_time|date:"g:i A" }}</div>
+        <div class="col-6 col-md-3"><i class="fas fa-couch me-1 text-primary"></i>{{ booking.seat_numbers }}</div>
+      </div>
+    </div>
+    <div class="text-end">
+      <div class="text-warning fw-bold fs-4">₹{{ booking.total_price }}</div>
+      <div class="text-muted small">{{ booking.seats_booked }} seat(s)</div>
+      {% if booking.is_watched and booking.payment_status == 'success' %}
+      <a href="{% url 'movie_detail' booking.schedule.movie.pk %}" class="btn btn-sm btn-outline-success rounded-pill mt-2">
+        <i class="fas fa-star me-1"></i>Review
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="glass-card p-5 text-center border-0 shadow" style="min-height:300px;">
+    <i class="fas fa-ticket-alt fa-4x text-muted mb-4 opacity-25"></i>
+    <h4 class="text-white fw-bold">No bookings yet</h4>
+    <p class="text-muted fs-5">Find a movie you love and book your seats!</p>
+    <a href="{% url 'home' %}" class="btn btn-primary rounded-pill px-5 mt-2">Browse Movies</a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

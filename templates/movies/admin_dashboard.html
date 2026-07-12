@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% block title %}Admin Analytics Dashboard{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-5">
+  <div>
+    <h1 class="text-white fw-bold mb-1"><i class="fas fa-chart-line me-2 text-primary"></i>Analytics Dashboard</h1>
+    <p class="text-muted">Real-time business intelligence for MovieApp</p>
+  </div>
+  <span class="badge bg-success rounded-pill px-4 py-2 fs-6"><i class="fas fa-circle me-2" style="font-size:0.5rem;"></i>Live</span>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-4 mb-5">
+  <div class="col-6 col-md-3">
+    <div class="glass-card p-4 border-0 shadow text-center h-100" style="background:linear-gradient(135deg,rgba(59,130,246,0.1),rgba(99,102,241,0.15));">
+      <div class="fs-1 fw-bold text-primary mb-1">₹{{ total_revenue|floatformat:0 }}</div>
+      <div class="text-muted">Total Revenue</div>
+      <i class="fas fa-rupee-sign text-primary opacity-25 mt-2 fa-2x"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="glass-card p-4 border-0 shadow text-center h-100" style="background:linear-gradient(135deg,rgba(52,211,153,0.1),rgba(16,185,129,0.15));">
+      <div class="fs-1 fw-bold text-success mb-1">{{ total_bookings }}</div>
+      <div class="text-muted">Total Bookings</div>
+      <i class="fas fa-ticket-alt text-success opacity-25 mt-2 fa-2x"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="glass-card p-4 border-0 shadow text-center h-100" style="background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(245,158,11,0.15));">
+      <div class="fs-1 fw-bold text-warning mb-1">{{ total_movies }}</div>
+      <div class="text-muted">Movies Listed</div>
+      <i class="fas fa-film text-warning opacity-25 mt-2 fa-2x"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="glass-card p-4 border-0 shadow text-center h-100" style="background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.15));">
+      <div class="fs-1 fw-bold text-danger mb-1">{{ total_users }}</div>
+      <div class="text-muted">Active Customers</div>
+      <i class="fas fa-users text-danger opacity-25 mt-2 fa-2x"></i>
+    </div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="row g-4 mb-5">
+  <div class="col-md-8">
+    <div class="glass-card p-4 border-0 shadow h-100">
+      <h4 class="text-white fw-bold mb-4"><i class="fas fa-chart-area me-2 text-primary"></i>Daily Revenue (Last 30 Days)</h4>
+      <canvas id="dailyChart" height="120"></canvas>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="glass-card p-4 border-0 shadow h-100">
+      <h4 class="text-white fw-bold mb-4"><i class="fas fa-chart-bar me-2 text-success"></i>Monthly Revenue</h4>
+      <canvas id="monthlyChart" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-5">
+  <!-- Top Movies -->
+  <div class="col-md-6">
+    <div class="glass-card p-4 border-0 shadow h-100">
+      <h4 class="text-white fw-bold mb-4"><i class="fas fa-crown me-2 text-warning"></i>Top Movies by Bookings</h4>
+      {% for movie in top_movies %}
+      <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded" style="background:rgba(255,255,255,0.03);">
+        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold" style="width:36px;height:36px;min-width:36px;background:linear-gradient(135deg,#3b82f6,#6366f1);">
+          {{ forloop.counter }}
+        </div>
+        <div class="flex-grow-1">
+          <div class="text-white fw-bold">{{ movie.title }}</div>
+          <div class="text-muted small">{{ movie.booking_count }} bookings</div>
+        </div>
+        <div class="text-warning fw-bold">★ {{ movie.average_rating }}</div>
+      </div>
+      {% empty %}
+      <p class="text-muted text-center py-4">No booking data yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Theater Stats -->
+  <div class="col-md-6">
+    <div class="glass-card p-4 border-0 shadow h-100">
+      <h4 class="text-white fw-bold mb-4"><i class="fas fa-building me-2 text-info"></i>Theater Performance</h4>
+      <div class="table-responsive">
+        <table class="table table-borderless text-white mb-0" style="--bs-table-bg:transparent;">
+          <thead class="text-muted small">
+            <tr><th>Theater</th><th>Bookings</th><th>Revenue</th></tr>
+          </thead>
+          <tbody>
+            {% for theater in theater_stats %}
+            <tr class="border-top border-secondary border-opacity-25">
+              <td>
+                <div class="fw-bold">{{ theater.name }}</div>
+                <div class="text-muted small">{{ theater.location }}</div>
+              </td>
+              <td><span class="badge bg-primary">{{ theater.booking_count|default:0 }}</span></td>
+              <td class="text-success fw-bold">₹{{ theater.revenue|default:0|floatformat:0 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-muted text-center py-4">No data yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Bookings -->
+<div class="glass-card p-4 border-0 shadow">
+  <h4 class="text-white fw-bold mb-4"><i class="fas fa-history me-2 text-muted"></i>Recent Bookings</h4>
+  <div class="table-responsive">
+    <table class="table table-borderless text-white mb-0" style="--bs-table-bg:transparent;">
+      <thead class="text-muted small border-bottom border-secondary border-opacity-25">
+        <tr><th>#</th><th>Customer</th><th>Movie</th><th>Theater</th><th>Showtime</th><th>Seats</th><th>Amount</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for b in recent_bookings %}
+        <tr class="border-top border-secondary border-opacity-10">
+          <td class="text-muted">#{{ b.id }}</td>
+          <td class="fw-bold">{{ b.user.username }}</td>
+          <td>{{ b.schedule.movie.title }}</td>
+          <td class="text-muted small">{{ b.schedule.theater.name }}</td>
+          <td class="text-muted small">{{ b.schedule.start_time|date:"d M, g:i A" }}</td>
+          <td class="text-primary">{{ b.seat_numbers }}</td>
+          <td class="text-warning fw-bold">₹{{ b.total_price }}</td>
+          <td><span class="badge bg-success rounded-pill">{{ b.get_payment_status_display }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted py-4">No bookings yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const chartDefaults = {
+  color: 'rgba(148, 163, 184, 1)',
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { ticks: { color: 'rgba(148,163,184,0.7)' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+    y: { ticks: { color: 'rgba(148,163,184,0.7)' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+  }
+};
+
+new Chart(document.getElementById('dailyChart'), {
+  type: 'line',
+  data: {
+    labels: {{ daily_labels|safe }},
+    datasets: [{
+      label: 'Revenue',
+      data: {{ daily_data|safe }},
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59,130,246,0.1)',
+      fill: true,
+      tension: 0.4,
+      pointRadius: 4,
+      pointBackgroundColor: '#3b82f6'
+    }]
+  },
+  options: chartDefaults
+});
+
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ month_labels|safe }},
+    datasets: [{
+      label: 'Revenue',
+      data: {{ month_data|safe }},
+      backgroundColor: 'rgba(52,211,153,0.6)',
+      borderColor: '#34d399',
+      borderWidth: 2,
+      borderRadius: 6
+    }]
+  },
+  options: chartDefaults
+});
+</script>
+{% endblock %}
