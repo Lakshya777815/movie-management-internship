@@ -1,44 +1,107 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row mb-5">
-    <h2>Trending Movies</h2>
+<!-- Hero Section -->
+<div class="glass-card p-4 p-md-5 mb-5 text-center position-relative overflow-hidden shadow-lg border-0">
+    <div class="position-absolute top-0 start-0 w-100 h-100" style="background: linear-gradient(45deg, rgba(59,130,246,0.15), rgba(139,92,246,0.15)); z-index: 0;"></div>
+    <div class="position-relative" style="z-index: 1;">
+        <h1 class="display-4 fw-bold mb-3 text-white">Discover Unlimited Entertainment</h1>
+        <p class="lead text-muted mb-4 mx-auto" style="max-width: 600px;">Explore our curated collection of blockbuster hits, indie gems, and timeless classics. Book tickets, leave verified reviews, and join the community.</p>
+        <a href="#trending" class="btn btn-primary px-5 py-3 rounded-pill fs-5 shadow"><i class="fas fa-compass me-2"></i>Explore Now</a>
+    </div>
+</div>
+
+<div id="trending" class="row mb-5 pt-3">
+    <div class="d-flex align-items-center mb-4">
+        <h2 class="mb-0 me-3 text-white">Trending Movies</h2>
+        <div class="flex-grow-1" style="height: 1px; background: linear-gradient(90deg, rgba(255,255,255,0.1), transparent);"></div>
+    </div>
+    
     <div class="row row-cols-1 row-cols-md-3 g-4">
         {% for movie in trending_movies %}
         <div class="col">
-            <div class="card h-100 movie-card">
-                {% if movie.posters.first %}
-                <img src="{{ movie.posters.first.image.url }}" class="card-img-top" alt="{{ movie.title }}" style="height: 400px; object-fit: cover;">
-                {% endif %}
-                <div class="card-body">
-                    <h5 class="card-title"><a href="{% url 'movie_detail' movie.pk %}" class="text-decoration-none text-dark">{{ movie.title }}</a></h5>
-                    <p class="card-text text-muted">⭐ {{ movie.average_rating }} / 5.0 | {{ movie.age_certification }}</p>
-                </div>
+            <div class="card h-100 glass-card border-0 overflow-hidden text-decoration-none shadow">
+                <a href="{% url 'movie_detail' movie.pk %}" class="text-decoration-none h-100 d-flex flex-column">
+                    <div class="position-relative">
+                        {% if movie.posters.first %}
+                        <img src="{{ movie.posters.first.image.url }}" class="card-img-top w-100" alt="{{ movie.title }}" style="height: 400px; object-fit: cover;">
+                        {% else %}
+                        <div class="card-img-top w-100 d-flex flex-column align-items-center justify-content-center bg-dark" style="height: 400px;">
+                            <i class="fas fa-film fa-3x text-muted mb-2"></i>
+                            <span class="text-muted">No Poster</span>
+                        </div>
+                        {% endif %}
+                        <div class="position-absolute bottom-0 start-0 w-100 p-3 pt-5" style="background: linear-gradient(to top, rgba(15,23,42,1), transparent);">
+                            <span class="badge bg-primary mb-2 shadow">{{ movie.age_certification }}</span>
+                        </div>
+                    </div>
+                    <div class="card-body d-flex flex-column bg-transparent">
+                        <h4 class="card-title text-white mb-2 fw-bold">{{ movie.title }}</h4>
+                        <div class="mt-auto d-flex justify-content-between align-items-center">
+                            <span class="text-warning fw-bold fs-5"><i class="fas fa-star me-1"></i>{{ movie.average_rating }}</span>
+                            <span class="text-muted small px-3 py-1 rounded-pill" style="background: rgba(255,255,255,0.05);"><i class="far fa-clock me-1"></i>{{ movie.duration_minutes }}m</span>
+                        </div>
+                    </div>
+                </a>
             </div>
         </div>
         {% empty %}
-        <p>No trending movies available.</p>
+        <div class="col-12">
+            <div class="glass-card p-5 text-center d-flex flex-column align-items-center justify-content-center shadow" style="min-height: 300px;">
+                <div class="rounded-circle d-flex align-items-center justify-content-center mb-4 shadow" style="width: 80px; height: 80px; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3);">
+                    <i class="fas fa-fire fa-2x" style="color: #60a5fa;"></i>
+                </div>
+                <h3 class="text-white fw-bold mb-2">Nothing trending right now</h3>
+                <p class="text-muted fs-5" style="max-width: 500px;">Our database is clean! Open the admin panel to add movies, and they will show up here beautifully.</p>
+            </div>
+        </div>
         {% endfor %}
     </div>
 </div>
 
 <div class="row mb-5">
-    <h2>Recently Released</h2>
+    <div class="d-flex align-items-center mb-4">
+        <h2 class="mb-0 me-3 text-white">Recently Released</h2>
+        <div class="flex-grow-1" style="height: 1px; background: linear-gradient(90deg, rgba(255,255,255,0.1), transparent);"></div>
+    </div>
+    
     <div class="row row-cols-1 row-cols-md-3 g-4">
         {% for movie in recent_movies %}
         <div class="col">
-            <div class="card h-100 movie-card">
-                {% if movie.posters.first %}
-                <img src="{{ movie.posters.first.image.url }}" class="card-img-top" alt="{{ movie.title }}" style="height: 400px; object-fit: cover;">
-                {% endif %}
-                <div class="card-body">
-                    <h5 class="card-title"><a href="{% url 'movie_detail' movie.pk %}" class="text-decoration-none text-dark">{{ movie.title }}</a></h5>
-                    <p class="card-text text-muted">Released: {{ movie.release_date|date:"M d, Y" }}</p>
-                </div>
+            <div class="card h-100 glass-card border-0 overflow-hidden text-decoration-none shadow">
+                <a href="{% url 'movie_detail' movie.pk %}" class="text-decoration-none h-100 d-flex flex-column">
+                    <div class="position-relative">
+                        {% if movie.posters.first %}
+                        <img src="{{ movie.posters.first.image.url }}" class="card-img-top w-100" alt="{{ movie.title }}" style="height: 400px; object-fit: cover;">
+                        {% else %}
+                        <div class="card-img-top w-100 d-flex flex-column align-items-center justify-content-center bg-dark" style="height: 400px;">
+                            <i class="fas fa-film fa-3x text-muted mb-2"></i>
+                            <span class="text-muted">No Poster</span>
+                        </div>
+                        {% endif %}
+                        <div class="position-absolute bottom-0 start-0 w-100 p-3 pt-5" style="background: linear-gradient(to top, rgba(15,23,42,1), transparent);">
+                            <span class="badge bg-secondary mb-2 shadow">{{ movie.release_date|date:"Y" }}</span>
+                        </div>
+                    </div>
+                    <div class="card-body d-flex flex-column bg-transparent">
+                        <h4 class="card-title text-white mb-2 fw-bold">{{ movie.title }}</h4>
+                        <div class="mt-auto text-muted small d-flex align-items-center">
+                            <i class="far fa-calendar-alt me-2 text-info"></i> {{ movie.release_date|date:"F d, Y" }}
+                        </div>
+                    </div>
+                </a>
             </div>
         </div>
         {% empty %}
-        <p>No recent movies available.</p>
+        <div class="col-12">
+            <div class="glass-card p-5 text-center d-flex flex-column align-items-center justify-content-center shadow" style="min-height: 300px;">
+                <div class="rounded-circle d-flex align-items-center justify-content-center mb-4 shadow" style="width: 80px; height: 80px; background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3);">
+                    <i class="fas fa-ticket-alt fa-2x" style="color: #a78bfa;"></i>
+                </div>
+                <h3 class="text-white fw-bold mb-2">The theater is quiet</h3>
+                <p class="text-muted fs-5" style="max-width: 500px;">No new releases have been added to the database yet. It's the perfect time to add some masterpieces.</p>
+            </div>
+        </div>
         {% endfor %}
     </div>
 </div>
