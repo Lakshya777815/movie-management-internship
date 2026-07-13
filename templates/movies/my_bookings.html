@@ -31,11 +31,18 @@
     <div class="text-end">
       <div class="text-warning fw-bold fs-4">₹{{ booking.total_price }}</div>
       <div class="text-muted small">{{ booking.seats_booked }} seat(s)</div>
-      {% if booking.is_watched and booking.payment_status == 'success' %}
-      <a href="{% url 'movie_detail' booking.schedule.movie.pk %}" class="btn btn-sm btn-outline-success rounded-pill mt-2">
-        <i class="fas fa-star me-1"></i>Review
-      </a>
-      {% endif %}
+      <div class="d-flex flex-column gap-2 mt-2 align-items-end">
+        {% if booking.payment_status == 'success' %}
+        <a href="{% url 'download_ticket' booking.id %}" class="btn btn-sm btn-primary rounded-pill px-3">
+          <i class="fas fa-download me-1"></i>Ticket PDF
+        </a>
+        {% endif %}
+        {% if booking.is_watched and booking.payment_status == 'success' %}
+        <a href="{% url 'movie_detail' booking.schedule.movie.pk %}" class="btn btn-sm btn-outline-success rounded-pill">
+          <i class="fas fa-star me-1"></i>Review
+        </a>
+        {% endif %}
+      </div>
     </div>
   </div>
   {% empty %}

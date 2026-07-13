@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Upload Movie - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-lg-8">
+    <div class="glass-card p-5 border-0 shadow-lg position-relative overflow-hidden">
+      <div class="position-absolute top-0 start-0 w-100 h-100" style="background: radial-gradient(circle at center, rgba(59, 130, 246, 0.05), transparent 70%); z-index: 0;"></div>
+      <div class="position-relative z-1">
+        <h2 class="text-white fw-bold mb-4"><i class="fas fa-cloud-upload-alt me-2 text-primary"></i>Upload New Movie</h2>
+        <p class="text-muted mb-4">Complete the fields below to add a new movie and upload its primary poster image. Only system admin/staff members can perform this action.</p>
+        
+        <form method="post" enctype="multipart/form-data" class="mt-4">
+          {% csrf_token %}
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              {{ form.title|as_crispy_field }}
+            </div>
+            <div class="col-md-6 mb-3">
+              {{ form.ticket_price|as_crispy_field }}
+            </div>
+            <div class="col-md-4 mb-3">
+              {{ form.release_date|as_crispy_field }}
+            </div>
+            <div class="col-md-4 mb-3">
+              {{ form.duration_minutes|as_crispy_field }}
+            </div>
+            <div class="col-md-4 mb-3">
+              {{ form.age_certification|as_crispy_field }}
+            </div>
+            <div class="col-12 mb-3">
+              {{ form.trailer_url|as_crispy_field }}
+            </div>
+            <div class="col-12 mb-3">
+              {{ form.description|as_crispy_field }}
+            </div>
+            <div class="col-12 mb-4">
+              {{ form.poster_image|as_crispy_field }}
+            </div>
+            
+            <div class="col-md-4 mb-3">
+              <label class="text-white fw-semibold mb-2">Genres</label>
+              <div class="p-3 rounded border border-secondary" style="max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2);">
+                {{ form.genres }}
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="text-white fw-semibold mb-2">Languages</label>
+              <div class="p-3 rounded border border-secondary" style="max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2);">
+                {{ form.languages }}
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="text-white fw-semibold mb-2">Cast Members</label>
+              <div class="p-3 rounded border border-secondary" style="max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2);">
+                {{ form.cast }}
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-3 justify-content-end mt-4">
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-light rounded-pill px-4">Cancel</a>
+            <button type="submit" class="btn btn-primary rounded-pill px-5">
+              <i class="fas fa-check me-2"></i>Publish Movie
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -26,7 +26,8 @@ class Theater(models.Model):
     capacity = models.PositiveIntegerField(default=50)
     rows = models.PositiveIntegerField(default=5, help_text="Number of seat rows")
     seats_per_row = models.PositiveIntegerField(default=10, help_text="Seats per row")
-    def __str__(self): return f"{self.name} - {self.location}"
+    screen = models.CharField(max_length=50, default='Screen 1', help_text="Screen name/number")
+    def __str__(self): return f"{self.name} - {self.location} ({self.screen})"
 
 class Movie(models.Model):
     CERTIFICATION_CHOICES = [('U', 'U'), ('UA', 'UA'), ('A', 'A'), ('S', 'S')]
