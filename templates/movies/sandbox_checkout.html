@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}Stripe Sandbox Checkout{% endblock %}
+
+{% block extra_css %}
+<style>
+  .sandbox-badge {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+  }
+  .payment-box {
+    border-left: 4px solid #635bff;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center my-5">
+  <div class="col-lg-9">
+    <div class="glass-card p-4 p-md-5 border-0 shadow-lg">
+      
+      <!-- Top header mirroring Stripe Checkout Sandbox -->
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary" style="border-bottom-color: rgba(255,255,255,0.1) !important;">
+        <div class="d-flex align-items-center gap-3">
+          <i class="fab fa-stripe text-primary" style="font-size: 3rem; color: #635bff !important;"></i>
+          <div>
+            <h3 class="text-white fw-bold m-0">Stripe Sandbox</h3>
+            <p class="text-muted m-0 small">Secure Payment Triage Gateway</p>
+          </div>
+        </div>
+        <div class="mt-2 mt-sm-0">
+          <span class="sandbox-badge"><i class="fas fa-flask me-1"></i>Test Mode Simulator</span>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <!-- Ticket Information Summary -->
+        <div class="col-md-5 order-md-2">
+          <div class="p-4 rounded h-100" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+            <h5 class="text-white fw-bold mb-3 pb-2 border-bottom border-secondary" style="border-bottom-color: rgba(255,255,255,0.05) !important;">Order Details</h5>
+            <div class="mb-3">
+              <div class="text-muted small">Movie</div>
+              <div class="text-white fw-bold">{{ booking.schedule.movie.title }}</div>
+            </div>
+            <div class="mb-3">
+              <div class="text-muted small">Theater & Screen</div>
+              <div class="text-white">{{ booking.schedule.theater.name }} ({{ booking.schedule.theater.screen }})</div>
+            </div>
+            <div class="mb-3">
+              <div class="text-muted small">Selected Seats</div>
+              <div class="text-warning fw-bold">{{ booking.seat_numbers }}</div>
+            </div>
+            <div class="mb-3">
+              <div class="text-muted small">Total Cost (INR)</div>
+              <div class="text-success fw-bold fs-4">₹{{ booking.total_price }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulation triage options -->
+        <div class="col-md-7 order-md-1 payment-box ps-md-4">
+          <h4 class="text-white fw-bold mb-3">Simulate Server-Side Verification</h4>
+          <p class="text-muted mb-4 small">Select an outcome below to simulate the behavior of the Stripe webhook verification flow and booking seat release engine.</p>
+          
+          <div class="d-grid gap-3">
+            
+            <!-- Success simulation option card -->
+            <div class="card bg-transparent border-secondary p-3 hover-shadow" style="border-color: rgba(255,255,255,0.1) !important;">
+              <div class="d-flex align-items-start gap-3">
+                <i class="fas fa-check-circle text-success fs-3 mt-1"></i>
+                <div class="flex-grow-1">
+                  <h6 class="text-white fw-bold mb-1">Simulate Successful Checkout</h6>
+                  <p class="text-muted small mb-2">Triggers transaction confirmation, locks seats as booked, creates a payment history entry, and sends the E-Ticket PDF via celery.</p>
+                  <form action="{% url 'sandbox_process_payment' booking.id %}" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="success">
+                    <button type="submit" class="btn btn-success btn-sm px-3 rounded-pill fw-bold">Execute Success Event</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <!-- Failure simulation option card -->
+            <div class="card bg-transparent border-secondary p-3 hover-shadow" style="border-color: rgba(255,255,255,0.1) !important;">
+              <div class="d-flex align-items-start gap-3">
+                <i class="fas fa-times-circle text-danger fs-3 mt-1"></i>
+                <div class="flex-grow-1">
+                  <h6 class="text-white fw-bold mb-1">Simulate Declined Payment / Failure</h6>
+                  <p class="text-muted small mb-2">Marks the booking as failed and immediately releases the reserved seat numbers back to the available pool.</p>
+                  <form action="{% url 'sandbox_process_payment' booking.id %}" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="fail">
+                    <button type="submit" class="btn btn-danger btn-sm px-3 rounded-pill fw-bold">Execute Failure Event</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cancellation simulation option card -->
+            <div class="card bg-transparent border-secondary p-3 hover-shadow" style="border-color: rgba(255,255,255,0.1) !important;">
+              <div class="d-flex align-items-start gap-3">
+                <i class="fas fa-arrow-circle-left text-info fs-3 mt-1"></i>
+                <div class="flex-grow-1">
+                  <h6 class="text-white fw-bold mb-1">Simulate User Cancellation</h6>
+                  <p class="text-muted small mb-2">Simulates user clicking "Cancel and return". Marks the booking as cancelled and immediately frees the seats.</p>
+                  <form action="{% url 'sandbox_process_payment' booking.id %}" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cancel">
+                    <button type="submit" class="btn btn-info text-white btn-sm px-3 rounded-pill fw-bold">Execute Cancel Event</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</div>
+{% endblock %}

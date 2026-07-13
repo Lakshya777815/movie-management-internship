@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Cancelled - MovieApp{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center my-5 py-4">
+  <div class="col-md-7 col-lg-6">
+    <div class="glass-card p-5 border-0 shadow text-center text-white">
+      <div class="mb-4">
+        <span class="d-inline-flex align-items-center justify-content-center bg-danger-soft text-danger rounded-circle p-4" style="background: rgba(239, 68, 68, 0.1); border: 2px solid rgba(239, 68, 68, 0.2); width: 90px; height: 90px;">
+          <i class="fas fa-times fa-3x"></i>
+        </span>
+      </div>
+
+      <h1 class="fw-bold mb-3">Payment Failed or Cancelled</h1>
+      <p class="text-muted fs-5 mb-4">The transaction could not be processed, or you cancelled the secure checkout flow.</p>
+
+      {% if booking %}
+      <div class="p-4 rounded-3 text-start mb-4" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);">
+        <h6 class="text-white fw-bold mb-3"><i class="fas fa-history text-warning me-2"></i>What happened to my seats?</h6>
+        <p class="text-muted small mb-2">In compliance with our Smart Seat Locking policy, the seat holds for reservation <strong>{{ booking.seat_numbers }}</strong> at <strong>{{ booking.schedule.theater.name }}</strong> have been automatically released.</p>
+        <p class="text-success small m-0"><i class="fas fa-check-circle me-1"></i>These seats are now available for booking again.</p>
+      </div>
+      {% endif %}
+
+      <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+        {% if booking %}
+        <a href="{% url 'seat_selection' booking.schedule.id %}" class="btn btn-warning py-3 px-4 rounded-pill fw-bold shadow">
+          <i class="fas fa-redo me-2"></i>Select & Book Seats Again
+        </a>
+        {% endif %}
+        <a href="{% url 'home' %}" class="btn btn-outline-light py-3 px-4 rounded-pill fw-bold hover-bg-light">
+          <i class="fas fa-film me-2"></i>Back to Home
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

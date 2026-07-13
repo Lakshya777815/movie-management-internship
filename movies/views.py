@@ -5,13 +5,15 @@ from django.contrib import messages
 from django.db.models import Avg, Count, Sum, Q, Min, Max
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.db import transaction
 from django.core.paginator import Paginator
 from django.core.mail import EmailMessage
 from django.conf import settings
+from django.urls import reverse
 from datetime import timedelta
-import uuid, json, threading
+import uuid, json, threading, stripe
 from .models import Movie, Review, Booking, ShowSchedule, SeatReservation, Payment, Genre, Language, Theater, MoviePoster
 from .forms import ReviewForm, UserRegisterForm, MovieUploadForm
 from .ticket_generator import generate_ticket_pdf
@@ -60,6 +62,16 @@ def send_ticket_email_async(booking_id):
     """Start email sending in a background thread so booking doesn't wait."""
     thread = threading.Thread(target=_send_ticket_email, args=(booking_id,), daemon=True)
     thread.start()
+
+
+def send_ticket_email_safe(booking_id):
+    """Try queuing email via Celery. Fall back to local background thread if Redis is offline."""
+    try:
+        send_ticket_email_task.delay(booking_id)
+        print(f"[Ticket Email] Enqueued in Celery for booking {booking_id}")
+    except Exception as e:
+        print(f"[Ticket Email] Celery/Redis connection failed: {e}. Falling back to background thread.")
+        send_ticket_email_async(booking_id)
 
 
 # ─────────────────────────────────────────────
@@ -339,41 +351,281 @@ def check_seat_status(request):
 #  TASK 3: PAYMENT
 # ─────────────────────────────────────────────
 
+# Stripe Initialization
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
 @login_required
 def payment_form(request, booking_id):
     booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
+    
+    # If the database expired or cancelled it, user needs to pick seats again
+    if booking.payment_status in ['failed', 'cancelled']:
+        messages.warning(request, "Your reserved seat lock expired or the payment failed. Please choose seats again.")
+        return redirect('seat_selection', schedule_id=booking.schedule.id)
+        
     if booking.payment_status == 'success':
         return redirect('booking_confirmation', booking_id=booking.id)
 
-    if request.method == 'POST':
-        card_number = request.POST.get('card_number', '').replace(' ', '')
+    # Detect if we should use Stripe or sandboxed fallback
+    is_stripe_configured = settings.STRIPE_SECRET_KEY and not settings.STRIPE_SECRET_KEY.startswith('sk_test_placeholder')
 
-        if card_number.endswith('0000'):
-            booking.payment_status = 'failed'
-            booking.save()
-            messages.error(request, "Payment failed! The card was declined. Please try again with a different card.")
+    return render(request, 'movies/payment_form.html', {
+        'booking': booking,
+        'stripe_configured': is_stripe_configured
+    })
+
+
+@login_required
+def create_stripe_checkout_session(request, booking_id):
+    booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
+
+    if booking.payment_status == 'success':
+        return redirect('booking_confirmation', booking_id=booking.id)
+
+    is_stripe_configured = settings.STRIPE_SECRET_KEY and not settings.STRIPE_SECRET_KEY.startswith('sk_test_placeholder')
+
+    if not is_stripe_configured:
+        messages.info(request, "Redirecting to Secure Sandbox Payment simulator...")
+        return redirect('payment_sandbox', booking_id=booking.id)
+
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'inr',
+                    'product_data': {
+                        'name': f"Tickets to '{booking.schedule.movie.title}'",
+                        'description': f"Theater: {booking.schedule.theater.name} | Seats: {booking.seat_numbers}",
+                    },
+                    'unit_amount': int(booking.total_price * 100),
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            metadata={'booking_id': booking.id},
+            success_url=request.build_absolute_uri(
+                reverse('payment_success', kwargs={'booking_id': booking.id})
+            ) + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=request.build_absolute_uri(
+                reverse('payment_cancel', kwargs={'booking_id': booking.id})
+            ),
+        )
+        return redirect(session.url, code=303)
+    except Exception as e:
+        messages.error(request, f"Stripe Checkout Session error: {str(e)}. Redirecting to Sandbox fallback instead.")
+        return redirect('payment_sandbox', booking_id=booking.id)
+
+
+@login_required
+def payment_success(request, booking_id):
+    booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
+    session_id = request.GET.get('session_id')
+
+    if session_id:
+        try:
+            session = stripe.checkout.Session.retrieve(session_id)
+            if session.payment_status == 'paid':
+                with transaction.atomic():
+                    booking = Booking.objects.select_for_update().get(id=booking_id)
+                    if booking.payment_status != 'success':
+                        booking.payment_status = 'success'
+                        booking.save()
+                        
+                        # Create Payment record
+                        txn_id = session.payment_intent or f"STN{session.id[:16]}"
+                        Payment.objects.get_or_create(
+                            booking=booking,
+                            defaults={
+                                'transaction_id': txn_id,
+                                'amount': booking.total_price,
+                                'status': 'success',
+                                'payment_method': 'Stripe'
+                            }
+                        )
+                        
+                        # Release seat reservations
+                        seats = [s.strip() for s in booking.seat_numbers.split(',') if s.strip()]
+                        SeatReservation.objects.filter(schedule=booking.schedule, seat_number__in=seats).delete()
+                        
+                        # Send async celery ticket email
+                        send_ticket_email_safe(booking.id)
+                
+                messages.success(request, "Payment successful! Your tickets are confirmed.")
+            else:
+                messages.warning(request, "Your payment remains pending.")
+                return redirect('payment_form', booking_id=booking.id)
+        except Exception as e:
+            messages.error(request, f"Error verifying payment: {str(e)}")
             return redirect('payment_form', booking_id=booking.id)
-        else:
-            with transaction.atomic():
-                transaction_id = f"TXN{uuid.uuid4().hex[:12].upper()}"
-                Payment.objects.create(
-                    booking=booking,
-                    transaction_id=transaction_id,
-                    amount=booking.total_price,
-                    status='success',
-                    payment_method='Card'
-                )
+    
+    return redirect('booking_confirmation', booking_id=booking.id)
+
+
+@login_required
+def payment_cancel(request, booking_id):
+    booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
+    
+    # Mark booking as cancelled or failed
+    with transaction.atomic():
+        booking = Booking.objects.select_for_update().get(id=booking_id)
+        if booking.payment_status == 'pending':
+            booking.payment_status = 'cancelled'
+            booking.save()
+            
+            # Release/delete seat reservations (failed/cancelled payments release reserved seats)
+            seats = [s.strip() for s in booking.seat_numbers.split(',') if s.strip()]
+            SeatReservation.objects.filter(schedule=booking.schedule, seat_number__in=seats).delete()
+            
+    return render(request, 'movies/payment_cancel.html', {'booking': booking})
+
+
+@login_required
+def payment_sandbox(request, booking_id):
+    booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
+    if booking.payment_status == 'success':
+        return redirect('booking_confirmation', booking_id=booking.id)
+    
+    if booking.payment_status in ['failed', 'cancelled']:
+        messages.warning(request, "This booking payment session has expired or failed. Please choose seats again.")
+        return redirect('seat_selection', schedule_id=booking.schedule.id)
+
+    return render(request, 'movies/sandbox_checkout.html', {'booking': booking})
+
+
+@login_required
+@require_POST
+def sandbox_process_payment(request, booking_id):
+    booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
+    action = request.POST.get('action')
+
+    if action == 'success':
+        with transaction.atomic():
+            booking = Booking.objects.select_for_update().get(id=booking_id)
+            if booking.payment_status != 'success':
                 booking.payment_status = 'success'
                 booking.save()
-                SeatReservation.objects.filter(user=request.user, schedule=booking.schedule).delete()
+                
+                # Create Payment record
+                txn_id = f"SANDBOX-{uuid.uuid4().hex[:12].upper()}"
+                Payment.objects.get_or_create(
+                    booking=booking,
+                    defaults={
+                        'transaction_id': txn_id,
+                        'amount': booking.total_price,
+                        'status': 'success',
+                        'payment_method': 'Sandbox-Stripe'
+                    }
+                )
+                
+                # Release seat reservations
+                seats = [s.strip() for s in booking.seat_numbers.split(',') if s.strip()]
+                SeatReservation.objects.filter(schedule=booking.schedule, seat_number__in=seats).delete()
+                
+                # Send async celery ticket email
+                send_ticket_email_safe(booking.id)
+        
+        messages.success(request, f"Simulated payment successful! Transaction ID: {txn_id}.")
+        return redirect('booking_confirmation', booking_id=booking.id)
 
-            # Send email with PDF ticket in background — booking never waits
-            send_ticket_email_task.delay(booking.id)
+    elif action == 'fail':
+        with transaction.atomic():
+            booking = Booking.objects.select_for_update().get(id=booking_id)
+            if booking.payment_status == 'pending':
+                booking.payment_status = 'failed'
+                booking.save()
+                
+                # Release seat reservations
+                seats = [s.strip() for s in booking.seat_numbers.split(',') if s.strip()]
+                SeatReservation.objects.filter(schedule=booking.schedule, seat_number__in=seats).delete()
+        
+        messages.error(request, "Simulated payment failed. Reserved seats released.")
+        return redirect('payment_cancel', booking_id=booking.id)
 
-            messages.success(request, f"Payment successful! Transaction ID: {transaction_id}. Your e-ticket has been sent to your email.")
-            return redirect('booking_confirmation', booking_id=booking.id)
+    elif action == 'cancel':
+        with transaction.atomic():
+            booking = Booking.objects.select_for_update().get(id=booking_id)
+            if booking.payment_status == 'pending':
+                booking.payment_status = 'cancelled'
+                booking.save()
+                
+                # Release seat reservations
+                seats = [s.strip() for s in booking.seat_numbers.split(',') if s.strip()]
+                SeatReservation.objects.filter(schedule=booking.schedule, seat_number__in=seats).delete()
+        
+        messages.info(request, "Simulated payment selection cancelled. Seats released.")
+        return redirect('payment_cancel', booking_id=booking.id)
 
-    return render(request, 'movies/payment_form.html', {'booking': booking})
+    return redirect('payment_form', booking_id=booking.id)
+
+
+@csrf_exempt
+@require_POST
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.headers.get('STRIPE_SIGNATURE')
+    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+    
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except ValueError:
+        return HttpResponse(status=400)
+    except stripe.error.SignatureVerificationError:
+        return HttpResponse(status=400)
+
+    # Process events completely on the server-side
+    event_type = event.get('type')
+    if event_type == 'checkout.session.completed':
+        session = event['data']['object']
+        booking_id = session.get('metadata', {}).get('booking_id')
+        if booking_id:
+            try:
+                with transaction.atomic():
+                    booking = Booking.objects.select_for_update().get(id=booking_id)
+                    if booking.payment_status != 'success':
+                        booking.payment_status = 'success'
+                        booking.save()
+                        
+                        # Create Payment record
+                        txn_id = session.get('payment_intent') or f"STN{session.get('id')[:16]}"
+                        Payment.objects.get_or_create(
+                            booking=booking,
+                            defaults={
+                                'transaction_id': txn_id,
+                                'amount': booking.total_price,
+                                'status': 'success',
+                                'payment_method': 'Stripe'
+                            }
+                        )
+                        
+                        # Release seat reservations
+                        seats = [s.strip() for s in booking.seat_numbers.split(',') if s.strip()]
+                        SeatReservation.objects.filter(schedule=booking.schedule, seat_number__in=seats).delete()
+                        
+                        # Send async celery ticket email
+                        send_ticket_email_safe(booking.id)
+            except Booking.DoesNotExist:
+                pass
+    elif event_type in ['checkout.session.expired', 'payment_intent.payment_failed']:
+        session = event['data']['object']
+        booking_id = session.get('metadata', {}).get('booking_id')
+        if booking_id:
+            try:
+                with transaction.atomic():
+                    booking = Booking.objects.select_for_update().get(id=booking_id)
+                    if booking.payment_status == 'pending':
+                        booking.payment_status = 'failed'
+                        booking.save()
+                        
+                        # Release seat reservations
+                        seats = [s.strip() for s in booking.seat_numbers.split(',') if s.strip()]
+                        SeatReservation.objects.filter(schedule=booking.schedule, seat_number__in=seats).delete()
+            except Booking.DoesNotExist:
+                pass
+
+    return HttpResponse(status=200)
 
 
 @login_required

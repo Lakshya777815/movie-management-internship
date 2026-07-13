@@ -16,55 +16,41 @@
       <!-- Payment Form -->
       <div class="col-md-7">
         <div class="glass-card p-4 p-md-5 border-0 shadow">
-          <h2 class="text-white fw-bold mb-2"><i class="fas fa-lock me-2 text-success"></i>Secure Payment</h2>
-          <p class="text-muted mb-4">Your payment is encrypted and secure.</p>
+          <h2 class="text-white fw-bold mb-2"><i class="fas fa-lock me-2 text-success"></i>Secure Checkout</h2>
+          <p class="text-muted mb-4">Choose your secure payment partner to complete the booking.</p>
 
-          <!-- Payment Methods -->
-          <div class="d-flex gap-3 mb-4">
-            <div class="p-3 rounded text-center" style="background:rgba(255,255,255,0.05);border:2px solid #3b82f6;flex:1;cursor:pointer;">
-              <i class="fas fa-credit-card text-primary fa-2x mb-1"></i>
-              <div class="text-white small fw-bold">Credit/Debit Card</div>
+          <!-- Payment Partner Card -->
+          <div class="p-4 rounded mb-4" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1);">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div class="d-flex align-items-center gap-3">
+                <div class="payment-logo-container px-3 py-2 rounded" style="background: rgba(99, 91, 255, 0.1); border: 1px solid rgba(99, 91, 255, 0.2);">
+                  <i class="fab fa-stripe text-primary" style="font-size: 2.5rem; color: #635bff !important;"></i>
+                </div>
+                <div>
+                  <h5 class="text-white fw-bold m-0">Stripe Payment Gateway</h5>
+                  <span class="badge bg-success mt-1" style="background-color: rgba(16, 185, 129, 0.2) !important; color: #10b981 !important; border: 1px solid rgba(16, 185, 129, 0.3);"><i class="fas fa-check-circle me-1"></i>Official Secure Integration</span>
+                </div>
+              </div>
             </div>
-            <div class="p-3 rounded text-center" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);flex:1;cursor:pointer;opacity:0.5;" title="Coming soon">
-              <i class="fas fa-mobile-alt text-muted fa-2x mb-1"></i>
-              <div class="text-muted small">UPI / NetBanking</div>
-            </div>
+            <p class="text-muted small">Pay securely using credit/debit card, Apple Pay, Google Pay, or localized payment options via Stripe's encrypted interface.</p>
           </div>
 
-          <form method="post" id="paymentForm">
+          {% if not stripe_configured %}
+          <div class="alert alert-warning border-0 p-3 mb-4 rounded-3 d-flex align-items-start gap-3" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2) !important;">
+            <i class="fas fa-exclamation-triangle mt-1" style="font-size: 1.25rem;"></i>
+            <div>
+              <strong class="d-block text-white mb-1">Sandbox Environment Active</strong>
+              No Stripe keys detected in system environment variables. You will be redirected to the secure sandbox payment simulator to verify the checkout flow.
+            </div>
+          </div>
+          {% endif %}
+
+          <form action="{% url 'create_stripe_checkout_session' booking.id %}" method="post" id="paymentForm">
             {% csrf_token %}
-            <div class="mb-4">
-              <label class="text-muted small fw-bold mb-2 d-block">CARD NUMBER</label>
-              <input type="text" name="card_number" class="form-control form-control-lg card-input"
-                placeholder="1234 5678 9012 3456" maxlength="19" required
-                oninput="this.value=this.value.replace(/\D/g,'').replace(/(.{4})/g,'$1 ').trim().substring(0,19)">
-              <div class="d-flex gap-2 mt-2">
-                <img src="https://img.icons8.com/color/48/visa.png" height="24" alt="Visa">
-                <img src="https://img.icons8.com/color/48/mastercard.png" height="24" alt="Mastercard">
-                <img src="https://img.icons8.com/color/48/rupay.png" height="24" alt="RuPay">
-              </div>
-            </div>
-            <div class="mb-4">
-              <label class="text-muted small fw-bold mb-2 d-block">CARDHOLDER NAME</label>
-              <input type="text" name="card_name" class="form-control form-control-lg" placeholder="Lakshya Khawade" required>
-            </div>
-            <div class="row g-3 mb-4">
-              <div class="col-6">
-                <label class="text-muted small fw-bold mb-2 d-block">EXPIRY DATE</label>
-                <input type="text" name="expiry" class="form-control form-control-lg card-input"
-                  placeholder="MM/YY" maxlength="5" required
-                  oninput="this.value=this.value.replace(/\D/g,'').replace(/^(\d{2})(\d)/, '$1/$2').substring(0,5)">
-              </div>
-              <div class="col-6">
-                <label class="text-muted small fw-bold mb-2 d-block">CVV</label>
-                <input type="password" name="cvv" class="form-control form-control-lg card-input"
-                  placeholder="•••" maxlength="4" required>
-              </div>
-            </div>
-            <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fs-5 shadow fw-bold" id="payBtn">
-              <i class="fas fa-lock me-2"></i>Pay ₹{{ booking.total_price }}
+            <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fs-5 shadow fw-bold d-flex align-items-center justify-content-center gap-2" id="payBtn" style="background: linear-gradient(135deg, #635bff 0%, #8075ff 100%); border: none;">
+              <i class="fas fa-shield-alt"></i> Proceed to Pay ₹{{ booking.total_price }}
             </button>
-            <p class="text-center text-muted small mt-3"><i class="fas fa-info-circle me-1"></i>Tip: Use any card ending in <code class="text-danger">0000</code> to simulate a failed payment.</p>
+            <p class="text-center text-muted small mt-3"><i class="fas fa-info-circle me-1"></i>You will be redirected to Stripe to finalize the transaction securely.</p>
           </form>
         </div>
       </div>

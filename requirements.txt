@@ -13,3 +13,4 @@ qrcode==8.2
 celery==5.4.0
 redis==5.0.7
 dj-database-url==2.1.0
+stripe==15.3.0
